@@ -1,0 +1,75 @@
+import sqlite3
+from datetime import datetime
+from collections import defaultdict
+
+def create_database():
+    connection = sqlite3.connect("messages.db")
+    cursor = connection.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            message_text TEXT,
+            command TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    sample_data = [
+        (1, "Hello!", "start", "2024-12-20 12:00:00"),
+        (2, "Hi!", "help", "2024-12-20 12:10:00"),
+        (1, "What is the weather?", "weather", "2024-12-21 13:00:00"),
+        (3, "How are you?", "start", "2024-12-21 14:00:00"),
+        (2, "Tell me a joke", "joke", "2024-12-22 15:00:00"),
+        (1, "Goodbye", "exit", "2024-12-22 16:00:00"),
+    ]
+
+    cursor.executemany('''
+        INSERT INTO messages (user_id, message_text, command, timestamp)
+        VALUES (?, ?, ?, ?)
+    ''', sample_data)
+
+    connection.commit()
+    connection.close()
+
+def calculate_statistics():
+    connection = sqlite3.connect("messages.db")
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT user_id, command, timestamp FROM messages")
+    messages = cursor.fetchall()
+
+    daily_stats = defaultdict(int)
+    user_stats = defaultdict(int)
+    command_stats = defaultdict(int)
+
+    for user_id, command, timestamp in messages:
+        date = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").date()
+        daily_stats[date] += 1
+        user_stats[user_id] += 1
+        command_stats[command] += 1
+
+    connection.close()
+
+    return {
+        "daily_stats": dict(daily_stats),
+        "user_stats": dict(user_stats),
+        "command_stats": dict(command_stats)
+    }
+
+if __name__ == "__main__":
+    create_database()
+    stats = calculate_statistics()
+
+    print("Daily Statistics:")
+    for date, count in stats["daily_stats"].items():
+        print(f"{date}: {count} messages")
+
+    print("\nUser Statistics:")
+    for user, count in stats["user_stats"].items():
+        print(f"User {user}: {count} messages")
+
+    print("\nCommand Statistics:")
+    for command, count in stats["command_stats"].items():
+        print(f"Command '{command}': {count} uses")
